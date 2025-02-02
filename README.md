@@ -4,7 +4,8 @@
 
 Upright is a real-time posture analysis tool for people working at their computers. It uses a computer webcam to track your posture, provides visual and auditory feedback on posture issues, and rewards good posture with an gamified XP (experience points) system.
 
-Built by Jioh Park, Emilio Cardillo-Schrader, Joshua Heng, and Ryan Jo
+
+**Built by Jioh Park, Emilio Cardillo-Schrader, Joshua Heng, and Ryan Jo**
 
 *Languages*:
 Python, JS, CSS, 
