@@ -42,12 +42,12 @@ def generate_frames():
 # Route for the home page
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('templates/index.html')
 
 # Route for the tech page
 @app.route('/tech')
 def tech():
-    return render_template('tech.html')
+    return render_template('templates/tech.html')
 
 # Route for the video feed
 @app.route('/video_feed')

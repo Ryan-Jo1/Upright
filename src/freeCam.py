@@ -1,12 +1,7 @@
 import os
-import sys
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow warnings
 
-import tensorflow as tf
-tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow warnings
-
-from flask import Flask, render_template, Response, request, jsonify, Blueprint
+from flask import Flask, Blueprint, render_template, Response, send_from_directory
 import cv2
 import mediapipe as mp
 import time
@@ -14,19 +9,14 @@ import threading
 import queue
 from openai import OpenAI
 import pygame
-from studyCam import study_app
-from freeCam import free_app
-from patientCam import patient_app  # Import the patient_app blueprint
 
-# Increase the recursion limit
-sys.setrecursionlimit(5000)
-
-app = Flask(__name__, static_folder="static", template_folder="templates")
+free_app = Blueprint('free_app', __name__, static_folder="static", template_folder="templates")
 
 # Initialize OpenAI API (replace with your API key or use environment variable)
-client = OpenAI(api_key="YOUR_API_KEY_HERE")
+client = OpenAI(api_key=(
+    "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"))
 
-# Initialize pose
+# Initialize pose estimation
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
@@ -37,8 +27,8 @@ camera_active = False
 camera_lock = threading.Lock()
 
 # Timer Setting
-PREP_TIME = 300   # 5 minutes prep
-STUDY_TIME = 1500 # 25 minutes study
+PREP_TIME = 300  # 5 minutes prep
+STUDY_TIME = 1500  # 25 minutes study
 countdown_time = PREP_TIME
 timer_mode = "prep"
 timer_running = False
@@ -50,12 +40,12 @@ HEAD_FORWARD_THRESHOLD = 35  # Strict threshold for head forward
 AVERAGE_SHOULDER_HEIGHT_THRESHOLD = 0.75  # For slouching detection
 
 # --- Time-Based Bad Feedback ---
-BAD_POSTURE_TIME_THRESHOLD = 5  # Seconds of continuous bad posture before feedback
+BAD_POSTURE_TIME_THRESHOLD = 10  # Seconds of continuous bad posture before feedback
 bad_posture_start_time = 0
 bad_posture_detected = False
 
 # --- XP Counter ---
-GOOD_POSTURE_TIME_THRESHOLD = 5  # Seconds of continuous good posture for XP
+GOOD_POSTURE_TIME_THRESHOLD = 10  # Seconds of continuous good posture for XP
 good_posture_start_time = 0
 good_posture_detected = False
 total_xp = 0
@@ -68,7 +58,7 @@ xp_increase_timer = time.time()
 
 # --- GenAI Feedback hub ---
 last_feedback_time = 0
-FEEDBACK_INTERVAL = 5  # Generate feedback every 10 seconds
+FEEDBACK_INTERVAL = 15  # Generate feedback every 10 seconds
 
 # Thread-safe access to genai feedback
 genai_feedback_shared = ""  # Makes global GenAI feedback variable
@@ -98,6 +88,7 @@ pygame.mixer.music.load(r"C:/Users/hengj/OneDrive - stevens.edu/Upright-Health-m
 current_volume = 0.1  # Initial volume
 VOLUME_INCREASE_RATE = 0.05  # Rate of volume increase per second
 
+
 def initialize_camera():
     """Initialize the webcam for a new session."""
     global cap, camera_active
@@ -106,6 +97,7 @@ def initialize_camera():
             cap = cv2.VideoCapture(0)
             camera_active = True
             initialize_timer()  # Restart timer when camera starts
+
 
 def release_camera():
     """Release the webcam when stopping."""
@@ -116,6 +108,7 @@ def release_camera():
             cap = None
             camera_active = False
         stop_timer()  # Stop and reset timer when webcam stops
+
 
 def initialize_timer():
     """Reset and start the Pomodoro timer."""
@@ -128,10 +121,12 @@ def initialize_timer():
         timer_thread = threading.Thread(target=update_timer)
         timer_thread.start()
 
+
 def stop_timer():
     """Stop the Pomodoro timer."""
     global timer_running
     timer_running = False
+
 
 def update_timer():
     """Runs the Pomodoro timer logic."""
@@ -150,9 +145,11 @@ def update_timer():
                 timer_mode = "prep"
                 countdown_time = PREP_TIME
 
+
 # Start the timer thread
 timer_thread = threading.Thread(target=update_timer)
 timer_thread.start()
+
 
 # Function to generate personalized feedback using OpenAI
 def generate_genai_feedback(posture_feedback):
@@ -173,6 +170,7 @@ def generate_genai_feedback(posture_feedback):
     )
 
     return response.choices[0].message.content.strip()
+
 
 # Thread function for OpenAI API calls
 def genai_feedback_thread():
@@ -216,9 +214,11 @@ def genai_feedback_thread():
             genai_feedback_shared = genai_feedback
         print("Live Feedback:", genai_feedback)
 
+
 # Start the OpenAI feedback thread
 feedback_thread = threading.Thread(target=genai_feedback_thread)
 feedback_thread.start()
+
 
 # --- Main Loop ---
 def draw_wrapped_text(image, text, x, y, max_width, font, font_scale, color, thickness):
@@ -250,6 +250,7 @@ audio_playing = False
 last_volume_increase_time = 0
 bad_posture_time = 0  # Initialize bad posture time
 
+
 def generate_frames():
     global camera_active
     initialize_camera()
@@ -268,7 +269,6 @@ def generate_frames():
     last_volume_increase_time = 0
     current_volume = 0.1
 
-
     while camera_active:  # Use the global flag here
         with camera_lock:
             if cap is None or not cap.isOpened():
@@ -278,9 +278,7 @@ def generate_frames():
             if not ret:
                 break
 
-
         frame = cv2.flip(frame, 1)
-
 
         """# Display the Pomodoro Timer on the frame
         minutes = countdown_time // 60
@@ -304,130 +302,133 @@ def generate_frames():
             nose = [landmarks[mp_pose.PoseLandmark.NOSE].x * frame.shape[1],
                     landmarks[mp_pose.PoseLandmark.NOSE].y * frame.shape[0]]
 
-            if timer_mode == "study":
-                # --- Calculations ---
-                # 1. Shoulder Level Difference
-                shoulder_level_diff = abs(left_shoulder[1] - right_shoulder[1])
+            # --- Calculations ---
+            # 1. Shoulder Level Difference
+            shoulder_level_diff = abs(left_shoulder[1] - right_shoulder[1])
 
-                # 2. Head Forward Position
-                shoulder_midpoint_x = (left_shoulder[0] + right_shoulder[0]) / 2
-                head_forward_dist = nose[0] - shoulder_midpoint_x
+            # 2. Head Forward Position
+            shoulder_midpoint_x = (left_shoulder[0] + right_shoulder[0]) / 2
+            head_forward_dist = nose[0] - shoulder_midpoint_x
 
-                # 3. Average Shoulder Height
-                average_shoulder_height = (left_shoulder[1] + right_shoulder[1]) / (2 * frame.shape[0])
+            # 3. Average Shoulder Height
+            average_shoulder_height = (left_shoulder[1] + right_shoulder[1]) / (2 * frame.shape[0])
 
-                # --- Posture Analysis ---
-                posture_feedback = "Good Posture!"
-                feedback_color = (0, 255, 0)  # Green
+            # --- Posture Analysis ---
+            posture_feedback = "Good Posture!"
+            feedback_color = (0, 255, 0)  # Green
 
-                # 1. Shoulder Level Check (Unevenness)
-                if shoulder_level_diff > SHOULDER_LEVEL_DIFFERENCE_THRESHOLD:
-                    posture_feedback = "Shoulders uneven"
-                    feedback_color = (0, 0, 255)  # Red
+            # 1. Shoulder Level Check (Unevenness)
+            if shoulder_level_diff > SHOULDER_LEVEL_DIFFERENCE_THRESHOLD:
+                posture_feedback = "Shoulders uneven"
+                feedback_color = (0, 0, 255)  # Red
 
-                # 2. Average Shoulder Height Check (Slouching)
-                if average_shoulder_height > AVERAGE_SHOULDER_HEIGHT_THRESHOLD:
-                    if posture_feedback == "Good Posture!":
-                        posture_feedback = "Shoulders too low (Slouching)"
+            # 2. Average Shoulder Height Check (Slouching)
+            if average_shoulder_height > AVERAGE_SHOULDER_HEIGHT_THRESHOLD:
+                if posture_feedback == "Good Posture!":
+                    posture_feedback = "Shoulders too low (Slouching)"
+                    feedback_color = (0, 0, 255)
+                elif posture_feedback == "Shoulders uneven":
+                    posture_feedback = "Shoulders uneven and too low"
+                    feedback_color = (0, 0, 255)
+
+            # 3. Head Forward Check
+            if head_forward_dist > HEAD_FORWARD_THRESHOLD:
+                if posture_feedback == "Good Posture!":
+                    posture_feedback = "Head forward"
+                    feedback_color = (0, 0, 255)
+                elif posture_feedback == "Shoulders uneven":
+                    posture_feedback = "Shoulders uneven, Head forward"
+                    feedback_color = (0, 0, 255)
+                elif posture_feedback == "Shoulders too low (Slouching)":
+                    posture_feedback = "Shoulders too low, Head forward"
+                    feedback_color = (0, 0, 255)
+                elif posture_feedback == "Shoulders uneven and too low":
+                    posture_feedback = "Shoulders uneven, too low, and Head forward"
+                    feedback_color = (0, 0, 255)
+
+            # --- Time-Based Feedback ---
+            if posture_feedback != "Good Posture!":
+                if not bad_posture_detected:
+                    bad_posture_start_time = time.time()
+                    bad_posture_detected = True
+                else:
+                    if time.time() - bad_posture_start_time > BAD_POSTURE_TIME_THRESHOLD:
+                        posture_feedback += " - Please Correct Posture!"
                         feedback_color = (0, 0, 255)
-                    elif posture_feedback == "Shoulders uneven":
-                        posture_feedback = "Shoulders uneven and too low"
-                        feedback_color = (0, 0, 255)
 
-                # 3. Head Forward Check
-                if head_forward_dist > HEAD_FORWARD_THRESHOLD:
-                    if posture_feedback == "Good Posture!":
-                        posture_feedback = "Head forward"
-                        feedback_color = (0, 0, 255)
-                    elif posture_feedback == "Shoulders uneven":
-                        posture_feedback = "Shoulders uneven, Head forward"
-                        feedback_color = (0, 0, 255)
-                    elif posture_feedback == "Shoulders too low (Slouching)":
-                        posture_feedback = "Shoulders too low, Head forward"
-                        feedback_color = (0, 0, 255)
-                    elif posture_feedback == "Shoulders uneven and too low":
-                        posture_feedback = "Shoulders uneven, too low, and Head forward"
-                        feedback_color = (0, 0, 255)
+                # Reset good posture timer
+                good_posture_detected = False
+                xp_multiplier = 1  # Reset multiplier on bad posture
+                last_xp_increment_time = time.time()
+            else:  # Good posture detected
+                bad_posture_detected = False  # Reset bad posture timer
 
-                # --- Time-Based Feedback ---
-                if posture_feedback != "Good Posture!":
-                    if not bad_posture_detected:
-                        bad_posture_start_time = time.time()
-                        bad_posture_detected = True
-                    else:
-                        if time.time() - bad_posture_start_time > BAD_POSTURE_TIME_THRESHOLD:
-                            posture_feedback += " - Please Correct Posture!"
-                            feedback_color = (0, 0, 255)
+                if not good_posture_detected:
+                    good_posture_start_time = time.time()
+                    good_posture_detected = True
+                    last_xp_increment_time = time.time()  # Reset XP increment time
+                else:
+                    # Increment XP every second
+                    if time.time() - last_xp_increment_time >= 1:
+                        total_xp += xp_multiplier
+                        last_xp_increment_time = time.time()
 
-                    # Reset good posture timer
-                    good_posture_detected = False
-                    xp_multiplier = 1  # Reset multiplier on bad posture
-                    last_xp_increment_time = time.time()
-                else:  # Good posture detected
-                    bad_posture_detected = False  # Reset bad posture timer
+                    # --- Exponential XP Increase ---
+                    if time.time() - xp_increase_timer >= XP_INCREASE_INTERVAL:
+                        xp_multiplier = min(xp_multiplier * 2, 32)
+                        xp_increase_timer = time.time()
 
-                    if not good_posture_detected:
-                        good_posture_start_time = time.time()
-                        good_posture_detected = True
-                        last_xp_increment_time = time.time()  # Reset XP increment time
-                    else:
-                        # Increment XP every second
-                        if time.time() - last_xp_increment_time >= 1:
-                            total_xp += xp_multiplier
-                            last_xp_increment_time = time.time()
+            # --- GenAI Feedback ---
+            if time.time() - last_feedback_time > FEEDBACK_INTERVAL:
+                feedback_queue.put(posture_feedback)
+                last_feedback_time = time.time()
 
-                        # --- Exponential XP Increase ---
-                        if time.time() - xp_increase_timer >= XP_INCREASE_INTERVAL:
-                            xp_multiplier = min(xp_multiplier * 2, 32)
-                            xp_increase_timer = time.time()
+            # Display posture feedback
+            cv2.putText(frame, posture_feedback, (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, feedback_color, 2)
 
-                # --- GenAI Feedback ---
-                if time.time() - last_feedback_time > FEEDBACK_INTERVAL:
-                    feedback_queue.put(posture_feedback)
-                    last_feedback_time = time.time()
+            # Display XP counter and multiplier
+            cv2.putText(frame, f"XP: {total_xp} (x{xp_multiplier})", (10, 140), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0, 255, 255), 2)
 
-                # Display posture feedback
-                cv2.putText(frame, posture_feedback, (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, feedback_color, 2)
+            # Get the latest genai feedback (thread-safe)
+            with genai_feedback_lock:
+                local_genai_feedback = genai_feedback_shared
 
-                # Display XP counter and multiplier
-                cv2.putText(frame, f"XP: {total_xp} (x{xp_multiplier})", (10, 140), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            # Calculate the maximum width for the wrapped text
+            max_text_width = frame.shape[1] - 20  # Subtract 20 for padding (10 on each side)
 
-                # Get the latest genai feedback (thread-safe)
-                with genai_feedback_lock:
-                    local_genai_feedback = genai_feedback_shared
+            # Display genai feedback on the frame using the draw_wrapped_text function
+            draw_wrapped_text(frame, local_genai_feedback, 10, 400, max_text_width, cv2.FONT_HERSHEY_SIMPLEX, 1,
+                              (255, 255, 255), 2)
 
-                # Calculate the maximum width for the wrapped text
-                max_text_width = frame.shape[1] - 20  # Subtract 20 for padding (10 on each side)
+            # --- Audio Feedback ---
+            if posture_feedback != "Good Posture!":
+                if not bad_posture_detected:
+                    bad_posture_start_time = time.time()
+                    bad_posture_detected = True
 
-                # Display genai feedback on the frame using the draw_wrapped_text function
-                draw_wrapped_text(frame, local_genai_feedback, 10, 400, max_text_width, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                # Check if 5 seconds of bad posture have passed AND audio isn't already playing
+                if time.time() - bad_posture_start_time >= BAD_POSTURE_TIME_THRESHOLD and not audio_playing:
+                    pygame.mixer.music.play(-1)
+                    audio_playing = True
+                    last_volume_increase_time = time.time()
 
-                # --- Audio Feedback ---
-                if posture_feedback != "Good Posture!":
-                    if not bad_posture_detected:
-                        bad_posture_start_time = time.time()
-                        bad_posture_detected = True
+                # If audio is playing, increase volume every second
+                if audio_playing and time.time() - last_volume_increase_time >= 1:
+                    current_volume = min(current_volume + VOLUME_INCREASE_RATE, 1.0)
+                    pygame.mixer.music.set_volume(current_volume)
+                    last_volume_increase_time = time.time()
 
-                    # Check if 5 seconds of bad posture have passed AND audio isn't already playing
-                    if time.time() - bad_posture_start_time >= BAD_POSTURE_TIME_THRESHOLD and not audio_playing:
-                        pygame.mixer.music.play(-1)
-                        audio_playing = True
-                        last_volume_increase_time = time.time()
+            else:  # Good posture
+                if bad_posture_detected:  # Reset only when transitioning from bad to good posture
+                    bad_posture_detected = False
+                    bad_posture_start_time = 0
+                if audio_playing:
+                    pygame.mixer.music.stop()
+                    audio_playing = False
+                    current_volume = 0.1
 
-                    # If audio is playing, increase volume every second
-                    if audio_playing and time.time() - last_volume_increase_time >= 1:
-                        current_volume = min(current_volume + VOLUME_INCREASE_RATE, 1.0)
-                        pygame.mixer.music.set_volume(current_volume)
-                        last_volume_increase_time = time.time()
-
-                else:  # Good posture
-                    if bad_posture_detected:  # Reset only when transitioning from bad to good posture
-                        bad_posture_detected = False
-                        bad_posture_start_time = 0
-                    if audio_playing:
-                        pygame.mixer.music.stop()
-                        audio_playing = False
-                        current_volume = 0.1
+        """
 
         # --- Display Pomodoro Timer ---
         if timer_running:
@@ -462,7 +463,11 @@ def generate_frames():
             if timer_paused:
                 timer_text += " (Paused)"
 
-            cv2.putText(frame, timer_text, (timer_x, timer_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            cv2.putText(
+                frame, timer_text, (timer_x, timer_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2
+            )
+
+            """
 
         # Encode the frame in JPEG format
         ret, buffer = cv2.imencode('.jpg', frame)
@@ -475,15 +480,50 @@ def generate_frames():
     # Release the camera when the loop exits
     cap.release()
 
-# Register blueprints
-app.register_blueprint(study_app, url_prefix='/study')
-app.register_blueprint(free_app, url_prefix='/free')
-app.register_blueprint(patient_app, url_prefix='/patient')  # Register the patient_app blueprint
 
-@app.route('/')
+@free_app.route('/')
 def index():
-    return render_template('index.html')
-    
-if __name__ == '__main__':
-    app.run(debug=True)
+    return render_template('../frontend/templates/index.html')
 
+@free_app.route('/study')
+def study():
+    return render_template('study.html')
+
+@free_app.route('/patient')
+def patient():
+    return render_template('patient.html')
+
+@free_app.route('/free')
+def free():
+    return render_template('free.html')
+
+@free_app.route('/demo')
+def demo():
+    return render_template('demo.html')
+
+@free_app.route('/video_feed')
+def video_feed():
+    """Start a new webcam feed session and restart timer."""
+    release_camera()  # Ensure old session is closed
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@free_app.route('/stop_program')
+def stop_program():
+    """Stop the webcam and reset the timer."""
+    release_camera()
+    return "STOPPED"
+
+@free_app.route('/free_video_feed')
+def free_video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@free_app.route('/stop_free_program')
+def stop_free_program():
+    release_camera()
+    return "STOPPED"
+
+
+if __name__ == '__main__':
+    app = Flask(__name__)
+    app.register_blueprint(free_app)
+    app.run(debug=True)

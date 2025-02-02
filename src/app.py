@@ -1,4 +1,12 @@
-from flask import Flask, Blueprint, render_template, Response, send_from_directory
+import os
+import sys
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow warnings
+
+import tensorflow as tf
+tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow warnings
+
+from flask import Flask, render_template, Response, request, jsonify, Blueprint
 import cv2
 import mediapipe as mp
 import time
@@ -6,13 +14,19 @@ import threading
 import queue
 from openai import OpenAI
 import pygame
+from studyCam import study_app
+from freeCam import free_app
+from patientCam import patient_app  # Import the patient_app blueprint
 
-study_app = Blueprint('study_app', __name__, static_folder="static", template_folder="templates")
+# Increase the recursion limit
+sys.setrecursionlimit(5000)
+
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # Initialize OpenAI API (replace with your API key or use environment variable)
-client = OpenAI(api_key=("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"))
+client = OpenAI(api_key="YOUR_API_KEY_HERE")
 
-# Initialize pose estimation
+# Initialize pose
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
@@ -23,7 +37,7 @@ camera_active = False
 camera_lock = threading.Lock()
 
 # Timer Setting
-PREP_TIME = 60   # 5 minutes prep
+PREP_TIME = 300   # 5 minutes prep
 STUDY_TIME = 1500 # 25 minutes study
 countdown_time = PREP_TIME
 timer_mode = "prep"
@@ -64,7 +78,7 @@ genai_feedback_lock = threading.Lock()
 feedback_queue = queue.Queue()
 
 # --- Pomodoro Timer ---
-PREP_TIME = 60  # 5 minutes in seconds
+PREP_TIME = 300  # 5 minutes in seconds
 STUDY_TIME = 1500  # 25 minutes in seconds
 countdown_time = PREP_TIME
 timer_mode = "prep"  # Initial mode
@@ -448,9 +462,7 @@ def generate_frames():
             if timer_paused:
                 timer_text += " (Paused)"
 
-            cv2.putText(
-                frame, timer_text, (timer_x, timer_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2
-            )
+            cv2.putText(frame, timer_text, (timer_x, timer_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
         # Encode the frame in JPEG format
         ret, buffer = cv2.imencode('.jpg', frame)
@@ -463,59 +475,15 @@ def generate_frames():
     # Release the camera when the loop exits
     cap.release()
 
+# Register blueprints
+app.register_blueprint(study_app, url_prefix='/study')
+app.register_blueprint(free_app, url_prefix='/free')
+app.register_blueprint(patient_app, url_prefix='/patient')  # Register the patient_app blueprint
 
-@study_app.route('/')
+@app.route('/')
 def index():
-    return render_template('index.html')
-
-@study_app.route('/study')
-def study():
-    return render_template('study.html')
-
-@study_app.route('/patient')
-def patient():
-    return render_template('patient.html')
-
-@study_app.route('/free')
-def free():
-    return render_template('free.html')
-
-@study_app.route('/demo')
-def demo():
-    return render_template('demo.html')
-
-@study_app.route('/video_feed')
-def video_feed():
-    """Start a new webcam feed session and restart timer."""
-    release_camera()  # Ensure old session is closed
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@study_app.route('/stop_program')
-def stop_program():
-    """Stop the webcam and reset the timer."""
-    release_camera()
-    return "STOPPED"
-
-@study_app.route('/start_music')
-def start_music():
-    pygame.mixer.music.play(-1)  # Play music in a loop
-    return "MUSIC_STARTED"
-
-@study_app.route('/stop_music')
-def stop_music():
-    pygame.mixer.music.stop()
-    return "MUSIC_STOPPED"
-
-@study_app.route('/study_video_feed')
-def study_video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@study_app.route('/stop_study_program')
-def stop_study_program():
-    release_camera()
-    return "STOPPED"
-
+    return render_template('../frontend/templates/index.html')
+    
 if __name__ == '__main__':
-    app = Flask(__name__)
-    app.register_blueprint(study_app)
     app.run(debug=True)
+
