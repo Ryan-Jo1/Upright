@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ryan Website</title>
+        <!-- Updated CSS Path -->
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.14.0/css/all.css"
+              integrity="sha384-HzLeBuhoNPvSl5KYnjx0BT+WB0QEEqLprO+NBkkk5gbc67FTaL7XIGa2w1L0Xbgc" crossorigin="anonymous">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@100..900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <!-- Navbar section -->
+        <nav class="navbar">
+            <div class="navbar__container">
+                <a href="/" id="navbar__logo"><i class="fas fa-gem"></i>Upright </a>
+                <div class="navbar__toggle" id="mobile-menu">
+                    <span class="bar"></span><span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+                <ul class="navbar__menu">
+                    <li class="navbar__item">
+                        <a href="{{ url_for('study_app.study') }}" class="navbar__links">Study</a>
+                    </li>
+                    <li class="navbar__item">
+                        <a href="{{ url_for('study_app.patient') }}" class="navbar__links">Patient</a>
+                    </li>
+                    <li class="navbar__item">
+                        <a href="{{ url_for('study_app.free') }}" class="navbar__links">Sandbox</a>
+                    </li>
+                    <li class="navbar__btn"><a href="{{ url_for('study_app.demo') }}" class="button">Demo</a></li>
+                </ul>
+            </div>
+        </nav>
+        
+        <!-- Hero Section -->
+        <div class="main">
+            <div class="main__container">
+                <div class="main__content">
+                    <h1>Patient: Input your symptoms, press apply to view recommended exercises, and perform them with a guided timer.</h1>
+                </div>
+                <div class="form__right">
+                    <form class="form" onsubmit="submitSymptoms(event)">
+                        <label for="username" class="form__label">SYMPTOMS: </label>
+                        <input type="text" id="username" name="username" class="form__input form__input--long">
+                        <button class="main__btn" type="submit" class="form__button">APPLY</button>
+                    </form>
+                    <div id="ai-feedback" class="feedback-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            var webcamWindow = null;
+
+            function openWebcamFeed() {
+                if (webcamWindow && !webcamWindow.closed) {
+                    webcamWindow.close(); // Ensure previous session is closed
+                }
+
+                fetch("{{ url_for('patient_app.stop_patient_program') }}")  // Stop any running session
+                    .then(response => response.text())
+                    .then(() => {
+                        webcamWindow = window.open("{{ url_for('patient_app.patient_video_feed') }}", "Webcam Feed", "width=800,height=600");
+
+                        // Notify Flask when the window closes
+                        webcamWindow.onbeforeunload = function() {
+                            fetch("{{ url_for('patient_app.stop_patient_program') }}")
+                                .then(response => console.log("Camera stopped"))
+                                .catch(error => console.error('Error:', error));
+                        };
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+            
+
+            function closeWebcamFeed() {
+                if (webcamWindow && !webcamWindow.closed) {
+                    fetch("{{ url_for('patient_app.stop_patient_program') }}")  // Stop the webcam
+                        .then(response => response.text())
+                        .then((data) => {
+                            if (data === "STOPPED") {
+                                webcamWindow.close();  // Close the pop-up window
+                                console.log("Webcam fully deactivated");
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                }
+            }
+             function submitSymptoms(event) {
+            event.preventDefault();
+            const symptoms = document.getElementById('username').value;
+            localStorage.setItem('symptoms', symptoms);
+            console.log('Symptoms stored:', symptoms);
+
+            fetch('/get_ai_feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ symptoms: symptoms }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ai-feedback').innerText = data.feedback;
+                openWebcamFeed();  // Open webcam after getting feedback
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+            function storeUsername(event) {
+                event.preventDefault();
+                const username = document.getElementById('username').value;
+                localStorage.setItem('username', username);
+                console.log('Username stored:', username);
+                // Optionally, you can redirect or perform other actions here
+            }
+
+            function submitSymptoms(event) {
+                event.preventDefault();
+                const symptoms = document.getElementById('username').value;
+                localStorage.setItem('symptoms', symptoms);
+                console.log('Symptoms stored:', symptoms);
+
+                fetch('/get_ai_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ symptoms: symptoms }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('ai-feedback').innerText = data.feedback;
+                    openWebcamFeed();  // Open the webcam feed after storing symptoms
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        </script>
+
+        <!-- Services Section -->
+        <div class="services">
+            <div class="services__container">
+                
+               
+            </div>
+        </div>
+        <!-- Footer Section -->
+        <div class="footer__container">
+            <div class="footer__links">
+                <div class="footer__link--wrapper">
+                    <div class="footer__link--items">
+                    </div>
+                </div>
+                <div class="footer__link--wrapper">
+                    
+                    
+                </div>
+            </div>
+            <div class="social__media">
+                <div class="social__media--wrap">
+                    <div class="footer__logo">
+                        <a href="/" id="footer__logo"><i class="fas fa-gem"></i>Upright</a>
+                    </div>
+                    <p class="website__right">NEXT 2020. All rights reserved</p>
+                    <div class="social__icons">
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-linkedin"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Updated JavaScript Path -->
+        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    </body>
+</html>

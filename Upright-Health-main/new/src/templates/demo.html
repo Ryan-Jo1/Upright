@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Demo Website</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.14.0/css/all.css"
+              integrity="sha384-HzLeBuhoNPvSl5KYnjx0BT+WB0QEEqLprO+NBkkk5gbc67FTaL7XIGa2w1L0Xbgc" crossorigin="anonymous">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@100..900&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+
+    </head>
+    <body>
+        <!-- Navbar section -->
+        <nav class="navbar">
+            <div class="navbar__container">
+                <a href="/" id="navbar__logo"><i class="fas fa-gem"></i>Upright </a>
+                <div class="navbar__toggle" id="mobile-menu">
+                    <span class="bar"></span><span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+                <ul class="navbar__menu">
+                    <li class="navbar__item">
+                        <a href="{{ url_for('study_app.study') }}" class="navbar__links">Study</a>
+                    </li>
+                    <li class="navbar__item">
+                        <a href="{{ url_for('study_app.patient') }}" class="navbar__links">Patient</a>
+                    </li>
+                    <li class="navbar__item">
+                        <a href="{{ url_for('study_app.free') }}" class="navbar__links">Sandbox</a>
+                    </li>
+                    <li class="navbar__btn"><a href="{{ url_for('study_app.demo') }}" class="button">Demo</a></li>
+                </ul>
+            </div>
+        </nav>
+        <!-- Demo Section -->
+         <div class="demo-wrapper">
+            <div class="demo-container">
+                <div class="demo-video-section">
+                    <!-- Patient Section -->
+                    <h2 class="demo-header">Study</h2>
+                    <div class="demo-video-box">
+                        <video class="demo-video" autoplay loop muted controls>
+                            <source src="{{ url_for('static', filename='images/Studydemo.mp4') }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="demo-text-box">
+                            <h3>Personalized Posture Analysis for Patient Care</h3>
+                            <p>This posture-tracking app lets you input your condition, then activates the webcam with a 15-second prep time. It monitors your posture for 25 minutes, providing real-time alerts for misalignment. Afterward, it analyzes your posture and offers personalized feedback. You then perform corrective exercises, with the system ensuring proper form—especially tracking waist alignment—to help improve your posture over time.</p>
+                        </div>
+                    </div>
+                    <!-- Study Section -->
+                    <h2 class="demo-header">Patient</h2>
+                    <div class="demo-video-box">
+                        <video class="demo-video" autoplay loop muted controls>
+                            <source src="{{ url_for('static', filename='images/Screen Recording 2025-02-01 202335.mp4') }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="demo-text-box">
+                            <h3>Research and Analysis</h3>
+                            <p>Dive into comprehensive studies and research methodologies. Our platform supports data-driven decision-making, enabling researchers to uncover trends and patterns in large datasets.</p>
+                        </div>
+                    </div>
+                    <!-- Sandbox Section -->
+                    <h2 class="demo-header">Sandbox</h2>
+                    <div class="demo-video-box">
+                        <video class="demo-video" autoplay loop muted controls>
+                            <source src="{{ url_for('static', filename='images/SreenRecord_Sandbox.mp4') }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="demo-text-box">
+                            <h3>Experiment and Innovate</h3>
+                            <p>This webcam-powered posture tracking app helps you maintain a healthy sitting position while working or studying. Using real-time computer vision, it continuously monitors your posture and alerts you with a sound whenever you slouch or sit incorrectly.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Services Section -->
+       
+        <!-- Footer Section -->
+        <div class="footer__container">
+            <div class="footer__links">
+                <div class="footer__link--wrapper">
+                    <div class="footer__link--items">
+                    </div>
+                </div>
+                <div class="footer__link--wrapper">
+                    
+                    
+                </div>
+            </div>
+            <div class="social__media">
+                <div class="social__media--wrap">
+                    <div class="footer__logo">
+                        <a href="/" id="footer__logo"><i class="fas fa-gem"></i>Upright</a>
+                    </div>
+                    <p class="website__right">NEXT 2020. All rights reserved</p>
+                    <div class="social__icons">
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="/" class="social__icon--link" target="_blank">
+                            <i class="fab fa-linkedin"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Updated JavaScript Path -->
+        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    </body>
+</html>
